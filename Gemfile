@@ -18,6 +18,8 @@ gem 'rspec-rails'
 gem 'factory_bot_rails'
 gem 'active_model_serializers'
 gem 'kaminari'
+gem "octokit", "~> 4.0"
+gem "rb-readline", '~> 0.5.5'
 
 
 # Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
