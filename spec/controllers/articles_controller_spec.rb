@@ -129,7 +129,9 @@ describe ArticlesController do
   end
 
   describe '#update' do
-    let(:article) { create :article }
+    let(:user) { create :user }
+    let(:article) { create :article, user: user }
+    let(:access_token) { user.create_access_token }
 
     subject { patch :update, params: { id: article.id } }
 
@@ -142,8 +144,17 @@ describe ArticlesController do
       it_behaves_like 'forbidden_requests'
     end
 
+    context 'when trying to update not owned article' do
+      let(:other_user) { create :user }
+      let(:other_article) { create :article, user: other_user }
+
+      subject { patch :update, params: { id: other_article.id } }
+      before { request.headers['authorization'] = "Bearer #{access_token.token}" }
+
+      it_behaves_like 'forbidden_requests'
+    end
+
     context 'when authorized' do
-      let(:access_token) { create :access_token }
       before { request.headers['authorization'] = "Bearer #{access_token.token}" }
 
       context 'when invalid parameters provided' do
@@ -183,7 +194,6 @@ describe ArticlesController do
       end
 
       context 'when success request sent' do
-        let(:access_token) { create :access_token }
         before { request.headers['authorization'] = "Bearer #{access_token.token}" }
 
         let(:valid_attributes) do
@@ -219,6 +229,56 @@ describe ArticlesController do
           expect( article.reload.title ).to eq(
             valid_attributes['data']['attributes']['title']
           )
+        end
+      end
+    end
+  end
+
+  describe '#destroy' do
+    let(:user) { create :user }
+    let(:article) { create :article, user: user }
+    let(:access_token) { user.create_access_token }
+
+    subject { delete :destroy, params: { id: article.id } }
+
+    context 'when no code provided' do
+      it_behaves_like 'forbidden_requests'
+    end
+
+    context 'when invalid code provided'do
+      before { request.headers['authorization'] = 'Invalid token' }
+      it_behaves_like 'forbidden_requests'
+    end
+
+    context 'when trying to remove not owned article' do
+      let(:other_user) { create :user }
+      let(:other_article) { create :article, user: other_user }
+
+      subject { delete :destroy, params: { id: other_article.id } }
+      before { request.headers['authorization'] = "Bearer #{access_token.token}" }
+
+      it_behaves_like 'forbidden_requests'
+    end
+
+    context 'when authorized' do
+      before { request.headers['authorization'] = "Bearer #{access_token.token}" }
+
+      context 'when success request sent' do
+        before { request.headers['authorization'] = "Bearer #{access_token.token}" }
+
+        it 'should have 204 status code' do
+          subject
+          expect(response).to have_http_status(:no_content)
+        end
+
+        it 'should have empty json body' do
+          subject
+          expect(response.body).to be_blank
+        end
+
+        it 'should destroy the article' do
+          article
+          expect{ subject }.to change{ user.articles.count }.by(-1)
         end
       end
     end
